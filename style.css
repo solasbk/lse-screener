@@ -675,7 +675,42 @@ html, body {
 .col-symbol { font-weight: 600; color: var(--color-primary); width: 90px; }
 .col-company { min-width: 180px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
 .col-sector { color: var(--color-text-muted); min-width: 120px; }
+.col-market { text-align: center; width: 60px; }
 .col-mcap { text-align: right; font-weight: 500; width: 100px; }
+
+.market-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+.market-lse {
+  background: color-mix(in oklch, var(--color-primary) 15%, transparent);
+  color: var(--color-primary);
+}
+.market-aim {
+  background: color-mix(in oklch, var(--color-warning) 20%, transparent);
+  color: var(--color-warning-text, #92600a);
+}
+[data-theme="dark"] .market-aim {
+  color: var(--color-warning);
+}
+
+/* Market filter select */
+.filter-select {
+  appearance: auto;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  min-height: 38px;
+  cursor: pointer;
+}
 .col-price { text-align: right; font-weight: 500; width: 90px; }
 .price-date { display: block; font-weight: 400; font-size: 0.7em; color: var(--color-text-muted); white-space: nowrap; }
 .col-change { text-align: right; font-weight: 500; width: 80px; }
