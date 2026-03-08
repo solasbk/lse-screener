@@ -89,11 +89,20 @@
     return cache;
   }
 
-  // Pre-process stocks
+  // Pre-process stocks — use OHLCV closing price instead of FMP quote price
   const stocks = rawData.stocks.map(s => {
     const mc = s.market_cap || 0;
     const currency = s.currency || 'GBp';
     const mcGBP = mc;
+    // Prefer OHLCV closing price over FMP quote price (FMP returns last traded, not official close)
+    let closingPrice = s.price || null;
+    if (ohlcvData && ohlcvData.stocks[s.symbol]) {
+      const closes = ohlcvData.stocks[s.symbol].c;
+      // Walk backwards to find the last non-null closing price
+      for (let i = closes.length - 1; i >= 0; i--) {
+        if (closes[i] != null) { closingPrice = closes[i]; break; }
+      }
+    }
     return {
       symbol: s.symbol,
       company_name: s.company_name,
@@ -102,7 +111,7 @@
       currency: currency,
       market_cap: mc,
       market_cap_gbp: mcGBP,
-      price: s.price || null,
+      price: closingPrice,
       change: s.change || null,
       changes_percentage: s.changes_percentage || null,
       volume: s.volume || null,
