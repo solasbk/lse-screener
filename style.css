@@ -677,6 +677,7 @@ html, body {
 .col-sector { color: var(--color-text-muted); min-width: 120px; }
 .col-mcap { text-align: right; font-weight: 500; width: 100px; }
 .col-price { text-align: right; font-weight: 500; width: 90px; }
+.price-date { display: block; font-weight: 400; font-size: 0.7em; color: var(--color-text-muted); white-space: nowrap; }
 .col-change { text-align: right; font-weight: 500; width: 80px; }
 .col-volume { text-align: right; width: 90px; }
 .col-advt { text-align: right; width: 85px; }
