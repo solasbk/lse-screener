@@ -129,6 +129,15 @@
           </div>
 
           <div class="filter-group" style="flex:0; min-width:auto;">
+            <div class="filter-label">Market</div>
+            <select class="filter-select" id="marketFilter" aria-label="Filter by market">
+              <option value="all">All</option>
+              <option value="LSE">LSE</option>
+              <option value="AIM">AIM</option>
+            </select>
+          </div>
+
+          <div class="filter-group" style="flex:0; min-width:auto;">
             <div class="filter-label">DVT Spike</div>
             <button class="preset-btn dvt-spike-btn" id="dvtSpikeBtn" title="Show stocks where DVT increased >10% vs previous day">DVT +10%</button>
           </div>
@@ -175,6 +184,7 @@
             <th class="col-symbol" data-sort="symbol">Symbol <span class="sort-icon">↕</span></th>
             <th class="col-company" data-sort="company_name">Company <span class="sort-icon">↕</span></th>
             <th class="col-sector" data-sort="sector">Sector <span class="sort-icon">↕</span></th>
+            <th class="col-market" data-sort="market">Market <span class="sort-icon">↕</span></th>
             <th class="col-mcap" data-sort="market_cap_gbp">Mkt Cap <span class="sort-icon">↕</span></th>
             <th class="col-price" data-sort="price">Price <span class="price-date" id="priceDate"></span><span class="sort-icon">↕</span></th>
             <th class="col-change" data-sort="changes_percentage">Chg % <span class="sort-icon">↕</span></th>
@@ -266,6 +276,7 @@
 
   <script src="./data.js"></script>
   <script src="./ohlcv.js"></script>
+  <script src="./aim_tickers.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
