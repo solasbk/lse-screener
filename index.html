@@ -231,17 +231,6 @@
     <div class="alerts-panel-body">
       <p class="alerts-intro">Alerts run automatically after each nightly data update. Matching stocks are emailed to the recipients below.</p>
 
-      <!-- Email recipients -->
-      <div class="alerts-section">
-        <div class="alerts-section-title">Email Recipients</div>
-        <div class="alerts-email-list" id="alertEmailList"></div>
-        <div class="alerts-email-field">
-          <input type="email" class="filter-input" id="alertEmailInput" placeholder="Add email address" value="">
-          <button class="alerts-save-btn" id="alertEmailAdd">Add</button>
-        </div>
-        <div class="alerts-email-status" id="alertEmailStatus"></div>
-      </div>
-
       <!-- Alert definitions -->
       <div class="alerts-section">
         <div class="alerts-section-title">Active Alerts</div>
@@ -259,6 +248,15 @@
           <div class="alert-card-params">
             <span class="alert-param">Threshold: £100,000</span>
             <span class="alert-param">Min increase: 50%</span>
+          </div>
+          <div class="alert-card-emails">
+            <div class="alert-card-emails-label">Recipients</div>
+            <div class="alerts-email-list" id="alertEmailList"></div>
+            <div class="alerts-email-field">
+              <input type="email" class="filter-input" id="alertEmailInput" placeholder="Add email address" value="">
+              <button class="alerts-save-btn" id="alertEmailAdd">Add</button>
+            </div>
+            <div class="alerts-email-status" id="alertEmailStatus"></div>
           </div>
         </div>
 
