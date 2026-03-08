@@ -89,6 +89,9 @@
     return cache;
   }
 
+  // AIM tickers set (loaded from aim_tickers.js)
+  const aimSet = window.AIM_TICKERS || new Set();
+
   // Pre-process stocks — use OHLCV closing price instead of FMP quote price
   const stocks = rawData.stocks.map(s => {
     const mc = s.market_cap || 0;
@@ -103,12 +106,15 @@
         if (closes[i] != null) { closingPrice = closes[i]; break; }
       }
     }
+    // Determine market: AIM or LSE (main market)
+    const market = aimSet.has(s.symbol) ? 'AIM' : 'LSE';
     return {
       symbol: s.symbol,
       company_name: s.company_name,
       sector: s.sector,
       industry: s.industry,
       currency: currency,
+      market: market,
       market_cap: mc,
       market_cap_gbp: mcGBP,
       price: closingPrice,
@@ -164,6 +170,7 @@
     changeMin: null,
     changeMax: null,
     includeEtfFunds: false,
+    marketFilter: 'all',
     dvtSpikeFilter: false,
     sortKey: 'market_cap_gbp',
     sortDir: 'desc',
@@ -185,6 +192,7 @@
   const $advtValMax = document.getElementById('advtValMax');
   const $changeMin = document.getElementById('changeMin');
   const $changeMax = document.getElementById('changeMax');
+  const $marketFilter = document.getElementById('marketFilter');
   const $dvtSpikeBtn = document.getElementById('dvtSpikeBtn');
   const $clearBtn = document.getElementById('clearBtn');
   const $tableBody = document.getElementById('tableBody');
@@ -463,6 +471,13 @@
   $changeMin.addEventListener('change', () => { state.changeMin = parseChangeInput($changeMin.value); state.page = 1; applyFilters(); });
   $changeMax.addEventListener('change', () => { state.changeMax = parseChangeInput($changeMax.value); state.page = 1; applyFilters(); });
 
+  // ===== MARKET FILTER =====
+  $marketFilter.addEventListener('change', () => {
+    state.marketFilter = $marketFilter.value;
+    state.page = 1;
+    applyFilters();
+  });
+
   // ===== DVT SPIKE FILTER =====
   $dvtSpikeBtn.addEventListener('click', () => {
     state.dvtSpikeFilter = !state.dvtSpikeFilter;
@@ -503,6 +518,7 @@
     state.changeMin = null;
     state.changeMax = null;
     state.includeEtfFunds = false;
+    state.marketFilter = 'all';
     state.dvtSpikeFilter = false;
     state.activePreset = null;
     state.page = 1;
@@ -514,6 +530,7 @@
     $advtValMax.value = '';
     $changeMin.value = '';
     $changeMax.value = '';
+    $marketFilter.value = 'all';
     $etfToggle.classList.remove('active');
     $etfToggle.setAttribute('aria-checked', 'false');
     $etfToggleLabel.textContent = 'Off';
@@ -617,6 +634,9 @@
       // Search
       if (search && !s.symbol.toLowerCase().includes(search) && !s.company_name.toLowerCase().includes(search)) return false;
 
+      // Market (LSE / AIM)
+      if (state.marketFilter !== 'all' && s.market !== state.marketFilter) return false;
+
       // Sector
       if (state.sectors.length > 0 && !state.sectors.includes(s.sector)) return false;
 
@@ -694,7 +714,7 @@
     if (pageStocks.length === 0) {
       $tableBody.innerHTML = `
         <tr>
-          <td colspan="12" style="padding:0;border:none;">
+          <td colspan="13" style="padding:0;border:none;">
             <div class="empty-state">
               <div class="empty-state-icon">
                 <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -722,6 +742,7 @@
         <td class="col-symbol">${s.symbol}</td>
         <td class="col-company">${escapeHtml(s.company_name)}</td>
         <td class="col-sector">${s.sector}</td>
+        <td class="col-market"><span class="market-badge market-${s.market.toLowerCase()}">${s.market}</span></td>
         <td class="col-mcap">${formatMarketCap(s.market_cap_gbp)}</td>
         <td class="col-price">${formatPrice(s.price, s.currency)}</td>
         <td class="col-change ${changeClass}">${formatChange(s.changes_percentage)}</td>
@@ -972,6 +993,10 @@
         <div class="detail-item">
           <div class="detail-label">Currency</div>
           <div class="detail-value">${stock.currency}</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Market</div>
+          <div class="detail-value"><span class="market-badge market-${stock.market.toLowerCase()}">${stock.market}</span></div>
         </div>
         <div class="detail-item">
           <div class="detail-label">Type</div>
