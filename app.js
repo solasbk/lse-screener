@@ -1013,6 +1013,81 @@
     if ($priceDate) $priceDate.textContent = dateStr;
   }
 
+  // ===== ALERTS PANEL =====
+  const $alertsToggle = document.getElementById('alertsToggle');
+  const $alertsPanel = document.getElementById('alertsPanel');
+  const $alertsBackdrop = document.getElementById('alertsBackdrop');
+  const $alertsPanelClose = document.getElementById('alertsPanelClose');
+  const $alertEmails = document.getElementById('alertEmails');
+  const $alertEmailSave = document.getElementById('alertEmailSave');
+  const $alertEmailStatus = document.getElementById('alertEmailStatus');
+
+  function openAlertsPanel() {
+    $alertsPanel.classList.add('open');
+    $alertsBackdrop.classList.add('open');
+    $alertsToggle.classList.add('active');
+  }
+  function closeAlertsPanel() {
+    $alertsPanel.classList.remove('open');
+    $alertsBackdrop.classList.remove('open');
+    $alertsToggle.classList.remove('active');
+  }
+
+  if ($alertsToggle) {
+    $alertsToggle.addEventListener('click', () => {
+      if ($alertsPanel.classList.contains('open')) closeAlertsPanel();
+      else openAlertsPanel();
+    });
+  }
+  if ($alertsBackdrop) $alertsBackdrop.addEventListener('click', closeAlertsPanel);
+  if ($alertsPanelClose) $alertsPanelClose.addEventListener('click', closeAlertsPanel);
+
+  // Load saved email recipients from localStorage
+  const savedEmails = localStorage.getItem('lse_alert_emails');
+  if (savedEmails && $alertEmails) {
+    $alertEmails.value = savedEmails;
+  }
+
+  // Load saved alert toggle states
+  document.querySelectorAll('.alert-toggle').forEach(toggle => {
+    const alertId = toggle.id.replace('alertToggle_', '');
+    const savedState = localStorage.getItem('lse_alert_' + alertId);
+    const isEnabled = savedState !== null ? savedState === 'true' : true; // default on
+    toggle.classList.toggle('active', isEnabled);
+    toggle.setAttribute('aria-checked', isEnabled);
+
+    toggle.addEventListener('click', () => {
+      const nowActive = !toggle.classList.contains('active');
+      toggle.classList.toggle('active', nowActive);
+      toggle.setAttribute('aria-checked', nowActive);
+      localStorage.setItem('lse_alert_' + alertId, nowActive);
+    });
+  });
+
+  // Save email recipients
+  if ($alertEmailSave) {
+    $alertEmailSave.addEventListener('click', () => {
+      const emails = $alertEmails.value.trim();
+      if (!emails) {
+        $alertEmailStatus.textContent = 'Please enter at least one email address.';
+        $alertEmailStatus.className = 'alerts-email-status error';
+        return;
+      }
+      // Basic validation
+      const emailList = emails.split(',').map(e => e.trim()).filter(e => e);
+      const valid = emailList.every(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+      if (!valid) {
+        $alertEmailStatus.textContent = 'One or more email addresses look invalid.';
+        $alertEmailStatus.className = 'alerts-email-status error';
+        return;
+      }
+      localStorage.setItem('lse_alert_emails', emails);
+      $alertEmailStatus.textContent = 'Saved (' + emailList.length + ' recipient' + (emailList.length > 1 ? 's' : '') + ')';
+      $alertEmailStatus.className = 'alerts-email-status success';
+      setTimeout(() => { $alertEmailStatus.textContent = ''; }, 3000);
+    });
+  }
+
   // ===== INITIAL RENDER =====
   applyFilters();
 
