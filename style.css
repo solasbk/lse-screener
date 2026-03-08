@@ -1207,6 +1207,46 @@ html, body {
   margin-bottom: var(--space-3);
 }
 
+.alerts-email-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.alerts-email-list:empty {
+  display: none;
+}
+
+.email-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  background: var(--color-surface-offset);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+.email-chip-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: var(--color-text-faint);
+  transition: all var(--transition-interactive);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.email-chip-remove:hover {
+  background: var(--color-error-highlight);
+  color: var(--color-error);
+}
+
 .alerts-email-field {
   display: flex;
   gap: var(--space-2);
