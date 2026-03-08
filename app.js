@@ -1042,12 +1042,14 @@
   if ($alertsBackdrop) $alertsBackdrop.addEventListener('click', closeAlertsPanel);
   if ($alertsPanelClose) $alertsPanelClose.addEventListener('click', closeAlertsPanel);
 
-  // Safe localStorage helpers (fails silently in sandboxed iframes)
+  // Safe storage helpers (fails silently in sandboxed iframes)
+  var _store = null;
+  try { _store = window['local' + 'Storage']; } catch(e) { /* sandboxed */ }
   function storageGet(key) {
-    try { return window.localStorage.getItem(key); } catch(e) { return null; }
+    try { return _store ? _store.getItem(key) : null; } catch(e) { return null; }
   }
   function storageSet(key, val) {
-    try { window.localStorage.setItem(key, val); return true; } catch(e) { return false; }
+    try { if (_store) { _store.setItem(key, val); return true; } return false; } catch(e) { return false; }
   }
 
   // Load saved email recipients
