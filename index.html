@@ -33,6 +33,13 @@
         </div>
       </div>
       <div class="header-right">
+        <button class="alerts-toggle" id="alertsToggle" aria-label="Toggle alerts panel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span>Alerts</span>
+        </button>
         <button class="theme-toggle" data-theme-toggle aria-label="Switch to dark mode">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
@@ -206,6 +213,55 @@
         </button>
       </div>
       <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- ALERTS PANEL -->
+  <div class="alerts-backdrop" id="alertsBackdrop"></div>
+  <div class="alerts-panel" id="alertsPanel">
+    <div class="alerts-panel-header">
+      <h2>Alerts</h2>
+      <button class="modal-close" id="alertsPanelClose" aria-label="Close alerts panel">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="alerts-panel-body">
+      <p class="alerts-intro">Alerts run automatically after each nightly data update. Matching stocks are emailed to the recipients below.</p>
+
+      <!-- Email recipients -->
+      <div class="alerts-section">
+        <div class="alerts-section-title">Email Recipients</div>
+        <div class="alerts-email-field">
+          <input type="text" class="filter-input" id="alertEmails" placeholder="email@example.com, another@example.com" value="">
+          <button class="alerts-save-btn" id="alertEmailSave">Save</button>
+        </div>
+        <div class="alerts-email-status" id="alertEmailStatus"></div>
+      </div>
+
+      <!-- Alert definitions -->
+      <div class="alerts-section">
+        <div class="alerts-section-title">Active Alerts</div>
+
+        <div class="alert-card" data-alert-id="dvt_crossover_100k">
+          <div class="alert-card-header">
+            <div class="alert-card-info">
+              <div class="alert-card-name">DVT Crossover £100K</div>
+              <div class="alert-card-desc">Triggers when a stock's DVT crosses from under £100,000 to over £100,000 between the two most recent trading days, and the increase is over 50%.</div>
+            </div>
+            <div class="toggle alert-toggle" id="alertToggle_dvt_crossover_100k" role="switch" aria-checked="true" tabindex="0">
+              <div class="toggle-knob"></div>
+            </div>
+          </div>
+          <div class="alert-card-params">
+            <span class="alert-param">Threshold: £100,000</span>
+            <span class="alert-param">Min increase: 50%</span>
+          </div>
+        </div>
+
+      </div>
     </div>
   </div>
 
