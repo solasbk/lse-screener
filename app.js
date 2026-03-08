@@ -1042,8 +1042,16 @@
   if ($alertsBackdrop) $alertsBackdrop.addEventListener('click', closeAlertsPanel);
   if ($alertsPanelClose) $alertsPanelClose.addEventListener('click', closeAlertsPanel);
 
-  // Load saved email recipients from localStorage
-  const savedEmails = localStorage.getItem('lse_alert_emails');
+  // Safe localStorage helpers (fails silently in sandboxed iframes)
+  function storageGet(key) {
+    try { return window.localStorage.getItem(key); } catch(e) { return null; }
+  }
+  function storageSet(key, val) {
+    try { window.localStorage.setItem(key, val); return true; } catch(e) { return false; }
+  }
+
+  // Load saved email recipients
+  const savedEmails = storageGet('lse_alert_emails');
   if (savedEmails && $alertEmails) {
     $alertEmails.value = savedEmails;
   }
@@ -1051,7 +1059,7 @@
   // Load saved alert toggle states
   document.querySelectorAll('.alert-toggle').forEach(toggle => {
     const alertId = toggle.id.replace('alertToggle_', '');
-    const savedState = localStorage.getItem('lse_alert_' + alertId);
+    const savedState = storageGet('lse_alert_' + alertId);
     const isEnabled = savedState !== null ? savedState === 'true' : true; // default on
     toggle.classList.toggle('active', isEnabled);
     toggle.setAttribute('aria-checked', isEnabled);
@@ -1060,7 +1068,7 @@
       const nowActive = !toggle.classList.contains('active');
       toggle.classList.toggle('active', nowActive);
       toggle.setAttribute('aria-checked', nowActive);
-      localStorage.setItem('lse_alert_' + alertId, nowActive);
+      storageSet('lse_alert_' + alertId, nowActive);
     });
   });
 
@@ -1081,7 +1089,7 @@
         $alertEmailStatus.className = 'alerts-email-status error';
         return;
       }
-      localStorage.setItem('lse_alert_emails', emails);
+      storageSet('lse_alert_emails', emails);
       $alertEmailStatus.textContent = 'Saved (' + emailList.length + ' recipient' + (emailList.length > 1 ? 's' : '') + ')';
       $alertEmailStatus.className = 'alerts-email-status success';
       setTimeout(() => { $alertEmailStatus.textContent = ''; }, 3000);
