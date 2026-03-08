@@ -1052,51 +1052,103 @@
     try { if (_store) { _store.setItem(key, val); return true; } return false; } catch(e) { return false; }
   }
 
-  // Load saved email recipients
-  const savedEmails = storageGet('lse_alert_emails');
-  if (savedEmails && $alertEmails) {
-    $alertEmails.value = savedEmails;
+  // ===== EMAIL RECIPIENTS (chip-based) =====
+  const $alertEmailList = document.getElementById('alertEmailList');
+  const $alertEmailInput = document.getElementById('alertEmailInput');
+  const $alertEmailAdd = document.getElementById('alertEmailAdd');
+
+  function getEmailList() {
+    var raw = storageGet('lse_alert_emails');
+    if (!raw) return [];
+    try { return JSON.parse(raw); } catch(e) { return raw.split(',').map(function(s){return s.trim();}).filter(Boolean); }
   }
 
+  function saveEmailList(list) {
+    storageSet('lse_alert_emails', JSON.stringify(list));
+  }
+
+  function renderEmailChips() {
+    var list = getEmailList();
+    $alertEmailList.innerHTML = '';
+    list.forEach(function(email, idx) {
+      var chip = document.createElement('span');
+      chip.className = 'email-chip';
+      chip.innerHTML = email +
+        '<button class="email-chip-remove" data-idx="' + idx + '" aria-label="Remove ' + email + '">' +
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+        '</button>';
+      $alertEmailList.appendChild(chip);
+    });
+    // Bind remove buttons
+    $alertEmailList.querySelectorAll('.email-chip-remove').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var i = parseInt(btn.dataset.idx);
+        var emails = getEmailList();
+        var removed = emails.splice(i, 1)[0];
+        saveEmailList(emails);
+        renderEmailChips();
+        showEmailStatus('Removed ' + removed, 'success');
+      });
+    });
+  }
+
+  function showEmailStatus(msg, type) {
+    $alertEmailStatus.textContent = msg;
+    $alertEmailStatus.className = 'alerts-email-status ' + type;
+    setTimeout(function() { $alertEmailStatus.textContent = ''; }, 3000);
+  }
+
+  function addEmail() {
+    var email = $alertEmailInput.value.trim();
+    if (!email) return;
+    // Basic validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showEmailStatus('Invalid email address.', 'error');
+      return;
+    }
+    var list = getEmailList();
+    // Check for duplicates
+    if (list.indexOf(email) >= 0) {
+      showEmailStatus('Already added.', 'error');
+      return;
+    }
+    list.push(email);
+    saveEmailList(list);
+    $alertEmailInput.value = '';
+    renderEmailChips();
+    showEmailStatus('Added ' + email, 'success');
+  }
+
+  if ($alertEmailAdd) {
+    $alertEmailAdd.addEventListener('click', addEmail);
+  }
+  if ($alertEmailInput) {
+    $alertEmailInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); addEmail(); }
+    });
+  }
+
+  // Initialize: if no emails saved, seed with default
+  if (getEmailList().length === 0) {
+    saveEmailList(['briankinane@gmail.com']);
+  }
+  renderEmailChips();
+
   // Load saved alert toggle states
-  document.querySelectorAll('.alert-toggle').forEach(toggle => {
-    const alertId = toggle.id.replace('alertToggle_', '');
-    const savedState = storageGet('lse_alert_' + alertId);
-    const isEnabled = savedState !== null ? savedState === 'true' : true; // default on
+  document.querySelectorAll('.alert-toggle').forEach(function(toggle) {
+    var alertId = toggle.id.replace('alertToggle_', '');
+    var savedState = storageGet('lse_alert_' + alertId);
+    var isEnabled = savedState !== null ? savedState === 'true' : true;
     toggle.classList.toggle('active', isEnabled);
     toggle.setAttribute('aria-checked', isEnabled);
 
-    toggle.addEventListener('click', () => {
-      const nowActive = !toggle.classList.contains('active');
+    toggle.addEventListener('click', function() {
+      var nowActive = !toggle.classList.contains('active');
       toggle.classList.toggle('active', nowActive);
       toggle.setAttribute('aria-checked', nowActive);
       storageSet('lse_alert_' + alertId, nowActive);
     });
   });
-
-  // Save email recipients
-  if ($alertEmailSave) {
-    $alertEmailSave.addEventListener('click', () => {
-      const emails = $alertEmails.value.trim();
-      if (!emails) {
-        $alertEmailStatus.textContent = 'Please enter at least one email address.';
-        $alertEmailStatus.className = 'alerts-email-status error';
-        return;
-      }
-      // Basic validation
-      const emailList = emails.split(',').map(e => e.trim()).filter(e => e);
-      const valid = emailList.every(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
-      if (!valid) {
-        $alertEmailStatus.textContent = 'One or more email addresses look invalid.';
-        $alertEmailStatus.className = 'alerts-email-status error';
-        return;
-      }
-      storageSet('lse_alert_emails', emails);
-      $alertEmailStatus.textContent = 'Saved (' + emailList.length + ' recipient' + (emailList.length > 1 ? 's' : '') + ')';
-      $alertEmailStatus.className = 'alerts-email-status success';
-      setTimeout(() => { $alertEmailStatus.textContent = ''; }, 3000);
-    });
-  }
 
   // ===== INITIAL RENDER =====
   applyFilters();
