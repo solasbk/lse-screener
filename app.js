@@ -993,6 +993,17 @@
     if (e.key === 'Escape' && $modalBackdrop.classList.contains('open')) closeModal();
   });
 
+  // ===== SET PRICE DATE =====
+  if (ohlcvData && ohlcvData.dates && ohlcvData.dates.length > 0) {
+    const lastDate = ohlcvData.dates[ohlcvData.dates.length - 1];
+    const d = new Date(lastDate + 'T00:00:00');
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const dateStr = dayNames[d.getDay()] + ' ' + String(d.getDate()).padStart(2,'0') + ' ' + monthNames[d.getMonth()] + ' ' + d.getFullYear();
+    const $priceDate = document.getElementById('priceDate');
+    if ($priceDate) $priceDate.textContent = dateStr;
+  }
+
   // ===== INITIAL RENDER =====
   applyFilters();
 
