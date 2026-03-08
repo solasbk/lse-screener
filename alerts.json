@@ -1,0 +1,15 @@
+{
+  "email_recipients": ["briankinane@gmail.com"],
+  "alerts": [
+    {
+      "id": "dvt_crossover_100k",
+      "name": "DVT Crossover £100K",
+      "description": "Stocks where DVT crosses from under £100,000 to over £100,000 between the two most recent trading days, with an increase of over 50%",
+      "enabled": true,
+      "params": {
+        "threshold_gbp": 100000,
+        "min_increase_pct": 50
+      }
+    }
+  ]
+}
