@@ -1077,45 +1077,13 @@
     try { if (_store) { _store.setItem(key, val); return true; } return false; } catch(e) { return false; }
   }
 
-  // ===== EMAIL RECIPIENTS (chip-based) =====
+  // ===== EMAIL RECIPIENTS (server-backed, chip-based) =====
+  var ALERTS_API = '__CGI_BIN__/alerts.py';
+  var _emailCache = []; // local cache of server state
+
   const $alertEmailList = document.getElementById('alertEmailList');
   const $alertEmailInput = document.getElementById('alertEmailInput');
   const $alertEmailAdd = document.getElementById('alertEmailAdd');
-
-  function getEmailList() {
-    var raw = storageGet('lse_alert_emails');
-    if (!raw) return [];
-    try { return JSON.parse(raw); } catch(e) { return raw.split(',').map(function(s){return s.trim();}).filter(Boolean); }
-  }
-
-  function saveEmailList(list) {
-    storageSet('lse_alert_emails', JSON.stringify(list));
-  }
-
-  function renderEmailChips() {
-    var list = getEmailList();
-    $alertEmailList.innerHTML = '';
-    list.forEach(function(email, idx) {
-      var chip = document.createElement('span');
-      chip.className = 'email-chip';
-      chip.innerHTML = email +
-        '<button class="email-chip-remove" data-idx="' + idx + '" aria-label="Remove ' + email + '">' +
-        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-        '</button>';
-      $alertEmailList.appendChild(chip);
-    });
-    // Bind remove buttons
-    $alertEmailList.querySelectorAll('.email-chip-remove').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var i = parseInt(btn.dataset.idx);
-        var emails = getEmailList();
-        var removed = emails.splice(i, 1)[0];
-        saveEmailList(emails);
-        renderEmailChips();
-        showEmailStatus('Removed ' + removed, 'success');
-      });
-    });
-  }
 
   function showEmailStatus(msg, type) {
     $alertEmailStatus.textContent = msg;
@@ -1123,25 +1091,87 @@
     setTimeout(function() { $alertEmailStatus.textContent = ''; }, 3000);
   }
 
+  function renderEmailChips(list) {
+    _emailCache = list || _emailCache;
+    $alertEmailList.innerHTML = '';
+    _emailCache.forEach(function(email) {
+      var chip = document.createElement('span');
+      chip.className = 'email-chip';
+      chip.innerHTML = email +
+        '<button class="email-chip-remove" data-email="' + email + '" aria-label="Remove ' + email + '">' +
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+        '</button>';
+      $alertEmailList.appendChild(chip);
+    });
+    // Bind remove buttons
+    $alertEmailList.querySelectorAll('.email-chip-remove').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var emailToRemove = btn.dataset.email;
+        removeEmail(emailToRemove);
+      });
+    });
+  }
+
+  function loadEmails() {
+    fetch(ALERTS_API)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        renderEmailChips(data.email_recipients || []);
+      })
+      .catch(function(err) {
+        console.error('Failed to load emails:', err);
+        showEmailStatus('Failed to load emails', 'error');
+      });
+  }
+
   function addEmail() {
     var email = $alertEmailInput.value.trim();
     if (!email) return;
-    // Basic validation
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       showEmailStatus('Invalid email address.', 'error');
       return;
     }
-    var list = getEmailList();
-    // Check for duplicates
-    if (list.indexOf(email) >= 0) {
-      showEmailStatus('Already added.', 'error');
-      return;
-    }
-    list.push(email);
-    saveEmailList(list);
-    $alertEmailInput.value = '';
-    renderEmailChips();
-    showEmailStatus('Added ' + email, 'success');
+    $alertEmailAdd.disabled = true;
+    fetch(ALERTS_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        $alertEmailAdd.disabled = false;
+        if (data.error === 'Already exists') {
+          showEmailStatus('Already added.', 'error');
+        } else if (data.error) {
+          showEmailStatus(data.error, 'error');
+        } else {
+          $alertEmailInput.value = '';
+          renderEmailChips(data.email_recipients);
+          showEmailStatus('Added ' + email, 'success');
+        }
+      })
+      .catch(function(err) {
+        $alertEmailAdd.disabled = false;
+        console.error('Failed to add email:', err);
+        showEmailStatus('Server error — try again', 'error');
+      });
+  }
+
+  function removeEmail(email) {
+    fetch(ALERTS_API + '?email=' + encodeURIComponent(email), { method: 'DELETE' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.error) {
+          showEmailStatus(data.error, 'error');
+        } else {
+          renderEmailChips(data.email_recipients);
+          showEmailStatus('Removed ' + email, 'success');
+        }
+      })
+      .catch(function(err) {
+        console.error('Failed to remove email:', err);
+        showEmailStatus('Server error — try again', 'error');
+      });
   }
 
   if ($alertEmailAdd) {
@@ -1153,11 +1183,8 @@
     });
   }
 
-  // Initialize: if no emails saved, seed with default
-  if (getEmailList().length === 0) {
-    saveEmailList(['briankinane@gmail.com']);
-  }
-  renderEmailChips();
+  // Load emails from server on init
+  loadEmails();
 
   // Load saved alert toggle states
   document.querySelectorAll('.alert-toggle').forEach(function(toggle) {
