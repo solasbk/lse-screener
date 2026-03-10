@@ -1,5 +1,5 @@
 {
-  "email_recipients": ["briankinane@gmail.com"],
+  "email_recipients": ["briankinane@gmail.com", "liam.bulmer@riverfortcapital.com", "gytis.martinkus@riverfortcapital.com"],
   "alerts": [
     {
       "id": "dvt_crossover_100k",
