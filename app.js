@@ -26,10 +26,10 @@
   }
 
   // ===== DATA =====
-  const rawData = window.LSE_DATA;
-  const ohlcvData = window.LSE_OHLCV || null;
-  const SECTORS = rawData.sectors.sort();
-  const ALL_INDUSTRIES = rawData.industries.sort();
+  let rawData = window.LSE_DATA;
+  let ohlcvData = window.LSE_OHLCV || null;
+  let SECTORS = rawData.sectors.sort();
+  let ALL_INDUSTRIES = rawData.industries.sort();
 
   // ===== DVT ENGINE =====
   // Computes DVT (Daily Value Traded = close * volume) and averages over N trading days
@@ -89,20 +89,35 @@
     return cache;
   }
 
-  // Pre-process stocks
-  const stocks = rawData.stocks.map(s => {
+  // AIM tickers set (loaded from aim_tickers.js)
+  const aimSet = window.AIM_TICKERS || new Set();
+
+  // Pre-process stocks — use OHLCV closing price instead of FMP quote price
+  let stocks = rawData.stocks.map(s => {
     const mc = s.market_cap || 0;
     const currency = s.currency || 'GBp';
     const mcGBP = mc;
+    // Prefer OHLCV closing price over FMP quote price (FMP returns last traded, not official close)
+    let closingPrice = s.price || null;
+    if (ohlcvData && ohlcvData.stocks[s.symbol]) {
+      const closes = ohlcvData.stocks[s.symbol].c;
+      // Walk backwards to find the last non-null closing price
+      for (let i = closes.length - 1; i >= 0; i--) {
+        if (closes[i] != null) { closingPrice = closes[i]; break; }
+      }
+    }
+    // Determine market: AIM or LSE (main market)
+    const market = aimSet.has(s.symbol) ? 'AIM' : 'LSE';
     return {
       symbol: s.symbol,
       company_name: s.company_name,
       sector: s.sector,
       industry: s.industry,
       currency: currency,
+      market: market,
       market_cap: mc,
       market_cap_gbp: mcGBP,
-      price: s.price || null,
+      price: closingPrice,
       change: s.change || null,
       changes_percentage: s.changes_percentage || null,
       volume: s.volume || null,
@@ -137,7 +152,7 @@
   updateStockDVT();
 
   // Build sector -> industries map
-  const sectorIndustries = {};
+  let sectorIndustries = {};
   stocks.forEach(s => {
     if (!sectorIndustries[s.sector]) sectorIndustries[s.sector] = new Set();
     sectorIndustries[s.sector].add(s.industry);
@@ -155,6 +170,7 @@
     changeMin: null,
     changeMax: null,
     includeEtfFunds: false,
+    marketFilter: 'all',
     dvtSpikeFilter: false,
     sortKey: 'market_cap_gbp',
     sortDir: 'desc',
@@ -176,6 +192,7 @@
   const $advtValMax = document.getElementById('advtValMax');
   const $changeMin = document.getElementById('changeMin');
   const $changeMax = document.getElementById('changeMax');
+  const $marketFilter = document.getElementById('marketFilter');
   const $dvtSpikeBtn = document.getElementById('dvtSpikeBtn');
   const $clearBtn = document.getElementById('clearBtn');
   const $tableBody = document.getElementById('tableBody');
@@ -454,6 +471,13 @@
   $changeMin.addEventListener('change', () => { state.changeMin = parseChangeInput($changeMin.value); state.page = 1; applyFilters(); });
   $changeMax.addEventListener('change', () => { state.changeMax = parseChangeInput($changeMax.value); state.page = 1; applyFilters(); });
 
+  // ===== MARKET FILTER =====
+  $marketFilter.addEventListener('change', () => {
+    state.marketFilter = $marketFilter.value;
+    state.page = 1;
+    applyFilters();
+  });
+
   // ===== DVT SPIKE FILTER =====
   $dvtSpikeBtn.addEventListener('click', () => {
     state.dvtSpikeFilter = !state.dvtSpikeFilter;
@@ -494,6 +518,7 @@
     state.changeMin = null;
     state.changeMax = null;
     state.includeEtfFunds = false;
+    state.marketFilter = 'all';
     state.dvtSpikeFilter = false;
     state.activePreset = null;
     state.page = 1;
@@ -505,6 +530,7 @@
     $advtValMax.value = '';
     $changeMin.value = '';
     $changeMax.value = '';
+    $marketFilter.value = 'all';
     $etfToggle.classList.remove('active');
     $etfToggle.setAttribute('aria-checked', 'false');
     $etfToggleLabel.textContent = 'Off';
@@ -608,6 +634,9 @@
       // Search
       if (search && !s.symbol.toLowerCase().includes(search) && !s.company_name.toLowerCase().includes(search)) return false;
 
+      // Market (LSE / AIM)
+      if (state.marketFilter !== 'all' && s.market !== state.marketFilter) return false;
+
       // Sector
       if (state.sectors.length > 0 && !state.sectors.includes(s.sector)) return false;
 
@@ -685,7 +714,7 @@
     if (pageStocks.length === 0) {
       $tableBody.innerHTML = `
         <tr>
-          <td colspan="12" style="padding:0;border:none;">
+          <td colspan="13" style="padding:0;border:none;">
             <div class="empty-state">
               <div class="empty-state-icon">
                 <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -713,6 +742,7 @@
         <td class="col-symbol">${s.symbol}</td>
         <td class="col-company">${escapeHtml(s.company_name)}</td>
         <td class="col-sector">${s.sector}</td>
+        <td class="col-market"><span class="market-badge market-${s.market.toLowerCase()}">${s.market}</span></td>
         <td class="col-mcap">${formatMarketCap(s.market_cap_gbp)}</td>
         <td class="col-price">${formatPrice(s.price, s.currency)}</td>
         <td class="col-change ${changeClass}">${formatChange(s.changes_percentage)}</td>
@@ -965,6 +995,10 @@
           <div class="detail-value">${stock.currency}</div>
         </div>
         <div class="detail-item">
+          <div class="detail-label">Market</div>
+          <div class="detail-value"><span class="market-badge market-${stock.market.toLowerCase()}">${stock.market}</span></div>
+        </div>
+        <div class="detail-item">
           <div class="detail-label">Type</div>
           <div class="detail-value"><span class="detail-badge ${typeClass}">${typeLabel}</span></div>
         </div>
@@ -992,6 +1026,423 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && $modalBackdrop.classList.contains('open')) closeModal();
   });
+
+  // ===== SET PRICE DATE =====
+  if (ohlcvData && ohlcvData.dates && ohlcvData.dates.length > 0) {
+    const lastDate = ohlcvData.dates[ohlcvData.dates.length - 1];
+    const d = new Date(lastDate + 'T00:00:00');
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const dateStr = dayNames[d.getDay()] + ' ' + String(d.getDate()).padStart(2,'0') + ' ' + monthNames[d.getMonth()] + ' ' + d.getFullYear();
+    const $priceDate = document.getElementById('priceDate');
+    if ($priceDate) $priceDate.textContent = dateStr;
+  }
+
+  // ===== ALERTS PANEL =====
+  const $alertsToggle = document.getElementById('alertsToggle');
+  const $alertsPanel = document.getElementById('alertsPanel');
+  const $alertsBackdrop = document.getElementById('alertsBackdrop');
+  const $alertsPanelClose = document.getElementById('alertsPanelClose');
+  const $alertEmails = document.getElementById('alertEmails');
+  const $alertEmailSave = document.getElementById('alertEmailSave');
+  const $alertEmailStatus = document.getElementById('alertEmailStatus');
+
+  function openAlertsPanel() {
+    $alertsPanel.classList.add('open');
+    $alertsBackdrop.classList.add('open');
+    $alertsToggle.classList.add('active');
+  }
+  function closeAlertsPanel() {
+    $alertsPanel.classList.remove('open');
+    $alertsBackdrop.classList.remove('open');
+    $alertsToggle.classList.remove('active');
+  }
+
+  if ($alertsToggle) {
+    $alertsToggle.addEventListener('click', () => {
+      if ($alertsPanel.classList.contains('open')) closeAlertsPanel();
+      else openAlertsPanel();
+    });
+  }
+  if ($alertsBackdrop) $alertsBackdrop.addEventListener('click', closeAlertsPanel);
+  if ($alertsPanelClose) $alertsPanelClose.addEventListener('click', closeAlertsPanel);
+
+  // Safe storage helpers (fails silently in sandboxed iframes)
+  var _store = null;
+  try { _store = window['local' + 'Storage']; } catch(e) { /* sandboxed */ }
+  function storageGet(key) {
+    try { return _store ? _store.getItem(key) : null; } catch(e) { return null; }
+  }
+  function storageSet(key, val) {
+    try { if (_store) { _store.setItem(key, val); return true; } return false; } catch(e) { return false; }
+  }
+
+  // ===== EMAIL RECIPIENTS (server-backed, chip-based) =====
+  var ALERTS_API = '__CGI_BIN__/alerts.py';
+  var _emailCache = []; // local cache of server state
+
+  const $alertEmailList = document.getElementById('alertEmailList');
+  const $alertEmailInput = document.getElementById('alertEmailInput');
+  const $alertEmailAdd = document.getElementById('alertEmailAdd');
+
+  function showEmailStatus(msg, type) {
+    $alertEmailStatus.textContent = msg;
+    $alertEmailStatus.className = 'alerts-email-status ' + type;
+    setTimeout(function() { $alertEmailStatus.textContent = ''; }, 3000);
+  }
+
+  function renderEmailChips(list) {
+    _emailCache = list || _emailCache;
+    $alertEmailList.innerHTML = '';
+    _emailCache.forEach(function(email) {
+      var chip = document.createElement('span');
+      chip.className = 'email-chip';
+      chip.innerHTML = email +
+        '<button class="email-chip-remove" data-email="' + email + '" aria-label="Remove ' + email + '">' +
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+        '</button>';
+      $alertEmailList.appendChild(chip);
+    });
+    // Bind remove buttons
+    $alertEmailList.querySelectorAll('.email-chip-remove').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var emailToRemove = btn.dataset.email;
+        removeEmail(emailToRemove);
+      });
+    });
+  }
+
+  function loadEmails() {
+    fetch(ALERTS_API)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        renderEmailChips(data.email_recipients || []);
+      })
+      .catch(function(err) {
+        console.error('Failed to load emails:', err);
+        showEmailStatus('Failed to load emails', 'error');
+      });
+  }
+
+  function addEmail() {
+    var email = $alertEmailInput.value.trim();
+    if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showEmailStatus('Invalid email address.', 'error');
+      return;
+    }
+    $alertEmailAdd.disabled = true;
+    fetch(ALERTS_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        $alertEmailAdd.disabled = false;
+        if (data.error === 'Already exists') {
+          showEmailStatus('Already added.', 'error');
+        } else if (data.error) {
+          showEmailStatus(data.error, 'error');
+        } else {
+          $alertEmailInput.value = '';
+          renderEmailChips(data.email_recipients);
+          showEmailStatus('Added ' + email, 'success');
+        }
+      })
+      .catch(function(err) {
+        $alertEmailAdd.disabled = false;
+        console.error('Failed to add email:', err);
+        showEmailStatus('Server error — try again', 'error');
+      });
+  }
+
+  function removeEmail(email) {
+    fetch(ALERTS_API + '?email=' + encodeURIComponent(email), { method: 'DELETE' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.error) {
+          showEmailStatus(data.error, 'error');
+        } else {
+          renderEmailChips(data.email_recipients);
+          showEmailStatus('Removed ' + email, 'success');
+        }
+      })
+      .catch(function(err) {
+        console.error('Failed to remove email:', err);
+        showEmailStatus('Server error — try again', 'error');
+      });
+  }
+
+  if ($alertEmailAdd) {
+    $alertEmailAdd.addEventListener('click', addEmail);
+  }
+  if ($alertEmailInput) {
+    $alertEmailInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); addEmail(); }
+    });
+  }
+
+  // Load emails from server on init
+  loadEmails();
+
+  // Load saved alert toggle states
+  document.querySelectorAll('.alert-toggle').forEach(function(toggle) {
+    var alertId = toggle.id.replace('alertToggle_', '');
+    var savedState = storageGet('lse_alert_' + alertId);
+    var isEnabled = savedState !== null ? savedState === 'true' : true;
+    toggle.classList.toggle('active', isEnabled);
+    toggle.setAttribute('aria-checked', isEnabled);
+
+    toggle.addEventListener('click', function() {
+      var nowActive = !toggle.classList.contains('active');
+      toggle.classList.toggle('active', nowActive);
+      toggle.setAttribute('aria-checked', nowActive);
+      storageSet('lse_alert_' + alertId, nowActive);
+    });
+  });
+
+  // ===== RE-INIT DATA (for Refresh / Update) =====
+  function reInitData() {
+    rawData = window.LSE_DATA;
+    ohlcvData = window.LSE_OHLCV || null;
+    SECTORS = rawData.sectors.sort();
+    ALL_INDUSTRIES = rawData.industries.sort();
+
+    // Re-process stocks
+    const aimSet2 = window.AIM_TICKERS || new Set();
+    stocks = rawData.stocks.map(function(s) {
+      var mc = s.market_cap || 0;
+      var currency = s.currency || 'GBp';
+      var closingPrice = s.price || null;
+      if (ohlcvData && ohlcvData.stocks[s.symbol]) {
+        var closes = ohlcvData.stocks[s.symbol].c;
+        for (var i = closes.length - 1; i >= 0; i--) {
+          if (closes[i] != null) { closingPrice = closes[i]; break; }
+        }
+      }
+      var market = aimSet2.has(s.symbol) ? 'AIM' : 'LSE';
+      return {
+        symbol: s.symbol,
+        company_name: s.company_name,
+        sector: s.sector,
+        industry: s.industry,
+        currency: currency,
+        market: market,
+        market_cap: mc,
+        market_cap_gbp: mc,
+        price: closingPrice,
+        change: s.change || null,
+        changes_percentage: s.changes_percentage || null,
+        volume: s.volume || null,
+        avg_volume: s.avg_volume || null,
+        year_high: s.year_high || null,
+        year_low: s.year_low || null,
+        advt_5d: null,
+        advt_10d: null,
+        advt_20d: null,
+        dvt_change_pct: null,
+        is_etf: s.is_etf === 'true' || s.is_etf === true,
+        is_fund: s.is_fund === 'true' || s.is_fund === true,
+        is_actively_trading: true
+      };
+    });
+
+    // Clear DVT cache and recompute
+    dvtCache = {};
+    updateStockDVT();
+
+    // Rebuild sector -> industries map
+    sectorIndustries = {};
+    stocks.forEach(function(s) {
+      if (!sectorIndustries[s.sector]) sectorIndustries[s.sector] = new Set();
+      sectorIndustries[s.sector].add(s.industry);
+    });
+
+    // Update price date
+    if (ohlcvData && ohlcvData.dates && ohlcvData.dates.length > 0) {
+      var lastDate = ohlcvData.dates[ohlcvData.dates.length - 1];
+      var d = new Date(lastDate + 'T00:00:00');
+      var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var dateStr = dayNames[d.getDay()] + ' ' + String(d.getDate()).padStart(2,'0') + ' ' + monthNames[d.getMonth()] + ' ' + d.getFullYear();
+      var $pd = document.getElementById('priceDate');
+      if ($pd) $pd.textContent = dateStr;
+    }
+
+    // Re-apply filters to update the table
+    state.page = 1;
+    applyFilters();
+  }
+
+  // ===== REFRESH BUTTON =====
+  var SERVE_API = '__CGI_BIN__/serve_data.py';
+  var $refreshBtn = document.getElementById('refreshBtn');
+
+  function loadScriptDynamic(src, callback) {
+    var script = document.createElement('script');
+    script.src = src;
+    script.onload = function() { callback(null); };
+    script.onerror = function() { callback(new Error('Failed to load ' + src)); };
+    document.body.appendChild(script);
+  }
+
+  function doRefresh() {
+    if ($refreshBtn.classList.contains('loading')) return;
+    $refreshBtn.classList.remove('success', 'error');
+    $refreshBtn.classList.add('loading');
+
+    // Remove existing data scripts
+    document.querySelectorAll('script[src*="data.js"]').forEach(function(el) { el.remove(); });
+    document.querySelectorAll('script[src*="ohlcv.js"]').forEach(function(el) { el.remove(); });
+    document.querySelectorAll('script[src*="serve_data.py"]').forEach(function(el) { el.remove(); });
+
+    var bust = '?t=' + Date.now();
+    var loaded = 0;
+    var errors = 0;
+
+    function onDone(err) {
+      if (err) errors++; else loaded++;
+      if (loaded + errors >= 2) finishRefresh();
+    }
+    function finishRefresh() {
+      $refreshBtn.classList.remove('loading');
+      if (errors > 0) {
+        $refreshBtn.classList.add('error');
+        setTimeout(function() { $refreshBtn.classList.remove('error'); }, 2000);
+      } else {
+        reInitData();
+        $refreshBtn.classList.add('success');
+        setTimeout(function() { $refreshBtn.classList.remove('success'); }, 2000);
+      }
+    }
+
+    // Try CGI serve endpoint first (has latest workspace data), fall back to static files
+    loadScriptDynamic(SERVE_API + '?file=data&' + bust, function(err) {
+      if (err) {
+        loadScriptDynamic('./data.js' + bust, onDone);
+      } else {
+        onDone(null);
+      }
+    });
+    loadScriptDynamic(SERVE_API + '?file=ohlcv&' + bust, function(err) {
+      if (err) {
+        loadScriptDynamic('./ohlcv.js' + bust, onDone);
+      } else {
+        onDone(null);
+      }
+    });
+  }
+
+  if ($refreshBtn) {
+    $refreshBtn.addEventListener('click', doRefresh);
+  }
+
+  // ===== UPDATE DATABASE BUTTON =====
+  var UPDATE_API = '__CGI_BIN__/update.py';
+  var $updateDbBtn = document.getElementById('updateDbBtn');
+  var $updateOverlay = document.getElementById('updateOverlay');
+  var $updateOverlayClose = document.getElementById('updateOverlayClose');
+  var $updateSteps = document.getElementById('updateSteps');
+  var $updateLog = document.getElementById('updateLog');
+
+  var UPDATE_STEP_LABELS = [
+    { id: 'load_data', label: 'Loading existing data' },
+    { id: 'yahoo_fetch', label: 'Fetching Yahoo Finance quotes' },
+    { id: 'apply_corrections', label: 'Applying corrections' },
+    { id: 'write_files', label: 'Writing updated files' }
+  ];
+
+  function renderUpdateSteps(steps) {
+    $updateSteps.innerHTML = UPDATE_STEP_LABELS.map(function(stepDef, idx) {
+      var serverStep = steps.find(function(s) { return s.step === stepDef.id; });
+      var cls = '';
+      var iconHtml = '<span class="update-step-icon">' + (idx + 1) + '</span>';
+      if (serverStep) {
+        if (serverStep.status === 'done') {
+          cls = 'done';
+          iconHtml = '<span class="update-step-icon">✓</span>';
+        } else if (serverStep.status === 'running') {
+          cls = 'active';
+          iconHtml = '<span class="update-step-icon"><span class="update-spinner"></span></span>';
+        } else if (serverStep.status === 'error') {
+          cls = 'error';
+          iconHtml = '<span class="update-step-icon">✗</span>';
+        }
+      }
+      var detail = serverStep && serverStep.detail ? ' — ' + serverStep.detail : '';
+      return '<div class="update-step ' + cls + '">' + iconHtml + '<span>' + stepDef.label + detail + '</span></div>';
+    }).join('');
+  }
+
+  function showUpdateOverlay() {
+    $updateOverlay.classList.add('open');
+    $updateSteps.innerHTML = '';
+    $updateLog.textContent = '';
+    $updateLog.classList.remove('visible');
+    renderUpdateSteps([]);
+  }
+
+  function closeUpdateOverlay() {
+    $updateOverlay.classList.remove('open');
+  }
+
+  if ($updateOverlayClose) {
+    $updateOverlayClose.addEventListener('click', closeUpdateOverlay);
+  }
+
+  if ($updateDbBtn) {
+    $updateDbBtn.addEventListener('click', function() {
+      if ($updateDbBtn.classList.contains('loading')) return;
+      $updateDbBtn.classList.remove('success', 'error');
+      $updateDbBtn.classList.add('loading');
+      showUpdateOverlay();
+
+      // Show initial step as active
+      renderUpdateSteps([{ step: 'load_data', status: 'running' }]);
+
+      fetch(UPDATE_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update' })
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          $updateDbBtn.classList.remove('loading');
+
+          if (data.status === 'success') {
+            renderUpdateSteps(data.steps || []);
+            $updateDbBtn.classList.add('success');
+            setTimeout(function() { $updateDbBtn.classList.remove('success'); }, 3000);
+
+            // Show summary in log
+            $updateLog.textContent = 'Update complete — ' + (data.corrections || 0) + ' corrections applied. Refreshing data…';
+            $updateLog.classList.add('visible');
+
+            // Auto-refresh data from server after short delay
+            setTimeout(function() {
+              doRefresh();
+            }, 1500);
+          } else {
+            renderUpdateSteps(data.steps || []);
+            $updateDbBtn.classList.add('error');
+            setTimeout(function() { $updateDbBtn.classList.remove('error'); }, 3000);
+
+            $updateLog.textContent = 'Error: ' + (data.errors ? data.errors.join(', ') : 'Unknown error');
+            $updateLog.classList.add('visible');
+          }
+        })
+        .catch(function(err) {
+          $updateDbBtn.classList.remove('loading');
+          $updateDbBtn.classList.add('error');
+          setTimeout(function() { $updateDbBtn.classList.remove('error'); }, 3000);
+
+          renderUpdateSteps([{ step: 'load_data', status: 'error', detail: 'Connection failed' }]);
+          $updateLog.textContent = 'Failed to connect: ' + err.message;
+          $updateLog.classList.add('visible');
+        });
+    });
+  }
 
   // ===== INITIAL RENDER =====
   applyFilters();

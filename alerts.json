@@ -1,0 +1,19 @@
+{
+  "email_recipients": [
+    "brian@riverfortcapital.com",
+    "liam.bulmer@riverfortcapital.com",
+    "gytis.martinkus@riverfortcapital.com"
+  ],
+  "alerts": [
+    {
+      "id": "dvt_crossover_100k",
+      "name": "DVT Crossover \u00a3100K",
+      "description": "Stocks where DVT crosses from under \u00a3100,000 to over \u00a3100,000 between the two most recent trading days, with an increase of over 50%",
+      "enabled": true,
+      "params": {
+        "threshold_gbp": 100000,
+        "min_increase_pct": 50
+      }
+    }
+  ]
+}

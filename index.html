@@ -33,6 +33,29 @@
         </div>
       </div>
       <div class="header-right">
+        <button class="header-btn refresh-btn" id="refreshBtn" aria-label="Refresh data from cache">
+          <svg class="refresh-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          <span>Refresh</span>
+        </button>
+        <button class="header-btn update-db-btn" id="updateDbBtn" aria-label="Update database from external sources">
+          <svg class="update-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Update Database</span>
+        </button>
+        <button class="alerts-toggle" id="alertsToggle" aria-label="Toggle alerts panel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span>Alerts</span>
+        </button>
         <button class="theme-toggle" data-theme-toggle aria-label="Switch to dark mode">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
@@ -122,6 +145,15 @@
           </div>
 
           <div class="filter-group" style="flex:0; min-width:auto;">
+            <div class="filter-label">Market</div>
+            <select class="filter-select" id="marketFilter" aria-label="Filter by market">
+              <option value="all">All</option>
+              <option value="LSE">LSE</option>
+              <option value="AIM">AIM</option>
+            </select>
+          </div>
+
+          <div class="filter-group" style="flex:0; min-width:auto;">
             <div class="filter-label">DVT Spike</div>
             <button class="preset-btn dvt-spike-btn" id="dvtSpikeBtn" title="Show stocks where DVT increased >10% vs previous day">DVT +10%</button>
           </div>
@@ -168,8 +200,9 @@
             <th class="col-symbol" data-sort="symbol">Symbol <span class="sort-icon">↕</span></th>
             <th class="col-company" data-sort="company_name">Company <span class="sort-icon">↕</span></th>
             <th class="col-sector" data-sort="sector">Sector <span class="sort-icon">↕</span></th>
+            <th class="col-market" data-sort="market">Market <span class="sort-icon">↕</span></th>
             <th class="col-mcap" data-sort="market_cap_gbp">Mkt Cap <span class="sort-icon">↕</span></th>
-            <th class="col-price" data-sort="price">Price <span class="sort-icon">↕</span></th>
+            <th class="col-price" data-sort="price">Price <span class="price-date" id="priceDate"></span><span class="sort-icon">↕</span></th>
             <th class="col-change" data-sort="changes_percentage">Chg % <span class="sort-icon">↕</span></th>
             <th class="col-volume" data-sort="volume">Volume <span class="sort-icon">↕</span></th>
             <th class="col-advt" data-sort="advt_5d">5D ADVT <span class="sort-icon">↕</span></th>
@@ -209,8 +242,76 @@
     </div>
   </div>
 
+  <!-- ALERTS PANEL -->
+  <div class="alerts-backdrop" id="alertsBackdrop"></div>
+  <div class="alerts-panel" id="alertsPanel">
+    <div class="alerts-panel-header">
+      <h2>Alerts</h2>
+      <button class="modal-close" id="alertsPanelClose" aria-label="Close alerts panel">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="alerts-panel-body">
+      <p class="alerts-intro">When the database is updated, matching stocks are emailed to the recipients below.</p>
+
+      <!-- Alert definitions -->
+      <div class="alerts-section">
+        <div class="alerts-section-title">Active Alerts</div>
+
+        <div class="alert-card" data-alert-id="dvt_crossover_100k">
+          <div class="alert-card-header">
+            <div class="alert-card-info">
+              <div class="alert-card-name">DVT Crossover £100K</div>
+              <div class="alert-card-desc">Triggers when a stock's DVT crosses from under £100,000 to over £100,000 between the two most recent trading days, and the increase is over 50%.</div>
+            </div>
+            <div class="toggle alert-toggle" id="alertToggle_dvt_crossover_100k" role="switch" aria-checked="true" tabindex="0">
+              <div class="toggle-knob"></div>
+            </div>
+          </div>
+          <div class="alert-card-params">
+            <span class="alert-param">Threshold: £100,000</span>
+            <span class="alert-param">Min increase: 50%</span>
+          </div>
+          <div class="alert-card-emails">
+            <div class="alert-card-emails-label">Recipients</div>
+            <div class="alerts-email-list" id="alertEmailList"></div>
+            <div class="alerts-email-field">
+              <input type="email" class="filter-input" id="alertEmailInput" placeholder="Add email address" value="">
+              <button class="alerts-save-btn" id="alertEmailAdd">Add</button>
+            </div>
+            <div class="alerts-email-status" id="alertEmailStatus"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- UPDATE PROGRESS OVERLAY -->
+  <div class="update-overlay" id="updateOverlay">
+    <div class="update-modal">
+      <div class="update-modal-header">
+        <h3>Updating Database</h3>
+        <button class="modal-close" id="updateOverlayClose" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="update-modal-body">
+        <div class="update-steps" id="updateSteps"></div>
+        <div class="update-log" id="updateLog"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="./data.js"></script>
   <script src="./ohlcv.js"></script>
+  <script src="./aim_tickers.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
